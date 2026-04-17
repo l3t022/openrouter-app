@@ -39,6 +39,8 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
   };
 }
 
+let idCounter = 0;
+
 export function generateId(): number {
-  return Date.now();
+  return Date.now() + idCounter++;
 }

@@ -6,7 +6,7 @@ export const ChatRequestSchema = z.object({
       role: z.enum(['user', 'assistant']),
       content: z.string(),
     })
-  ),
+  ).min(1, 'At least one message is required'),
   model: z.string().optional(),
   apiKey: z.string().min(1, 'API Key is required'),
 });
