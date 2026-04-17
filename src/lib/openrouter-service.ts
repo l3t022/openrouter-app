@@ -1,13 +1,15 @@
 import { OpenRouterModel } from '@/types';
 
-export class OpenRouterService {
-  private static BASE_URL = 'https://openrouter.ai/api/v1';
+const BASE_URL = process.env.OPENROUTER_API_BASE_URL || 'https://openrouter.ai/api/v1';
+const HTTP_REFERER = process.env.OPENROUTER_HTTP_REFERER || 'https://antigravity-openrouter.app';
+const APP_TITLE = process.env.OPENROUTER_APP_TITLE || 'Antigravity BYOK Assistant';
 
+export class OpenRouterService {
   static async fetchModels(): Promise<OpenRouterModel[]> {
-    const response = await fetch(`${this.BASE_URL}/models`, {
+    const response = await fetch(`${BASE_URL}/models`, {
       headers: {
-        'HTTP-Referer': 'https://antigravity-openrouter.app',
-        'X-OpenRouter-Title': 'Antigravity BYOK Assistant',
+        'HTTP-Referer': HTTP_REFERER,
+        'X-OpenRouter-Title': APP_TITLE,
       },
     });
 

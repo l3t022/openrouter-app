@@ -1,28 +1,38 @@
 import { NextRequest } from 'next/server';
+import { safeValidateChatRequest } from '@/lib/validations';
 
-export const runtime = 'edge'; // Edge Runtime — no Node.js SDK needed
+export const runtime = 'edge';
+
+const DEFAULT_MODEL = 'openrouter/free';
+const BASE_URL = process.env.OPENROUTER_API_BASE_URL || 'https://openrouter.ai/api/v1';
+const HTTP_REFERER = process.env.OPENROUTER_HTTP_REFERER || 'https://antigravity-openrouter.app';
+const APP_TITLE = process.env.OPENROUTER_APP_TITLE || 'Antigravity BYOK Assistant';
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, model, apiKey } = await req.json();
+    const body = await req.json();
+    const validation = safeValidateChatRequest(body);
 
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'API Key is required' }), {
+    if (!validation.success) {
+      const errors = validation.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`);
+      return new Response(JSON.stringify({ error: 'Validation failed', details: errors }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    const orResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const { messages, model, apiKey } = validation.data;
+
+    const orResponse = await fetch(`${BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://antigravity-openrouter.app',
-        'X-Title': 'Antigravity BYOK Assistant',
+        'HTTP-Referer': HTTP_REFERER,
+        'X-Title': APP_TITLE,
       },
       body: JSON.stringify({
-        model: model || 'openrouter/free',
+        model: model || DEFAULT_MODEL,
         messages,
         stream: true,
       }),
@@ -31,14 +41,15 @@ export async function POST(req: NextRequest) {
     if (!orResponse.ok) {
       const errText = await orResponse.text();
       let errMsg = `OpenRouter error ${orResponse.status}`;
-      try { errMsg = JSON.parse(errText)?.error?.message || errMsg; } catch {}
+      try {
+        errMsg = JSON.parse(errText)?.error?.message || errMsg;
+      } catch {}
       return new Response(JSON.stringify({ error: errMsg }), {
         status: orResponse.status,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    // Stream SSE from OpenRouter → plain text to the client
     const stream = new ReadableStream({
       async start(controller) {
         const reader = orResponse.body!.getReader();
@@ -52,7 +63,6 @@ export async function POST(req: NextRequest) {
 
             const chunk = decoder.decode(value, { stream: true });
 
-            // OpenRouter sends SSE lines: "data: {...}\n\n"
             for (const line of chunk.split('\n')) {
               const trimmed = line.trim();
               if (!trimmed.startsWith('data:')) continue;
@@ -63,9 +73,7 @@ export async function POST(req: NextRequest) {
                 const json = JSON.parse(data);
                 const content = json.choices?.[0]?.delta?.content ?? '';
                 if (content) controller.enqueue(encoder.encode(content));
-              } catch {
-                // skip malformed SSE chunks
-              }
+              } catch {}
             }
           }
         } catch (err) {
@@ -82,9 +90,10 @@ export async function POST(req: NextRequest) {
         'Cache-Control': 'no-cache',
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Chat API Error:', error);
-    return new Response(JSON.stringify({ error: error.message || 'Failed to process chat' }), {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to process chat';
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
