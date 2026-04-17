@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { SelectedModels, Toast, ChatMessage } from '@/types';
+import { SelectedModels, Toast } from '@/types';
 import { useModels } from '@/hooks/useModels';
+import { useChat } from '@/hooks/useChat';
 import { SettingsPanel, ChatMessages, ChatInput, ToastContainer } from '@/components';
 import { generateId } from '@/lib/utils';
 
@@ -14,14 +15,21 @@ export default function Home() {
     vision: '',
     fallback: '',
   });
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
-  const [streamingContent, setStreamingContent] = useState('');
   const [chatError, setChatError] = useState('');
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [isRetrying, setIsRetrying] = useState(false);
 
   const { models, loading } = useModels();
+
+  const { messages, streamingContent, isRetrying, sendMessage } = useChat({
+    apiKey,
+    selectedModels,
+    onError: (error) => {
+      setChatError(`❌ ${error}`);
+      addToast('Chat Error', error, 'error');
+    },
+    onRetry: () => {},
+  });
 
   const addToast = (title: string, msg: string, type: Toast['type'] = 'error') => {
     const id = generateId();
@@ -44,92 +52,10 @@ export default function Home() {
     addToast('Settings Saved', 'Your configuration has been saved.', 'success');
   };
 
-  const sendMessage = async () => {
-    if (!input.trim()) return;
-
-    if (!apiKey) {
-      setChatError('⚠️ Ingresa tu OpenRouter API Key en Settings y guarda.');
-      return;
-    }
-
+  const handleSend = async () => {
     setChatError('');
-    const userMessage: ChatMessage = { role: 'user', content: input };
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
+    await sendMessage(input);
     setInput('');
-    setStreamingContent('...');
-
-    try {
-      let modelToUse =
-        selectedModels.text ||
-        selectedModels.code ||
-        selectedModels.vision ||
-        'openrouter/free';
-
-      if (
-        (input.toLowerCase().includes('code') || input.toLowerCase().includes('function')) &&
-        selectedModels.code
-      ) {
-        modelToUse = selectedModels.code;
-      }
-
-      const executeChat = async (targetModel: string) => {
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: newMessages, model: targetModel, apiKey }),
-        });
-
-        if (!response.ok) {
-          const errText = await response.text();
-          let errMsg = `Error ${response.status}`;
-          try {
-            errMsg = JSON.parse(errText).error || errMsg;
-          } catch {}
-          throw { message: errMsg, status: response.status };
-        }
-        return response;
-      };
-
-      let response;
-      try {
-        response = await executeChat(modelToUse);
-      } catch (err: unknown) {
-        const error = err as { status?: number; message?: string };
-        if (selectedModels.fallback && (error.status === 429 || error.status >= 500)) {
-          setIsRetrying(true);
-          addToast('Model Busy', `Retrying with fallback: ${selectedModels.fallback}...`, 'info');
-          await new Promise((r) => setTimeout(r, 1000));
-          response = await executeChat(selectedModels.fallback);
-          setIsRetrying(false);
-        } else {
-          throw err;
-        }
-      }
-
-      const reader = response.body?.getReader();
-      let accumulated = '';
-      setStreamingContent('');
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          accumulated += new TextDecoder().decode(value);
-          setStreamingContent(accumulated);
-        }
-      }
-
-      setMessages([...newMessages, { role: 'assistant', content: accumulated }]);
-      setStreamingContent('');
-    } catch (err: unknown) {
-      console.error(err);
-      setIsRetrying(false);
-      setStreamingContent('');
-      const errorMsg = err instanceof Error ? err.message : 'Error al procesar la solicitud.';
-      setChatError(`❌ ${errorMsg}`);
-      addToast('Chat Error', errorMsg, 'error');
-    }
   };
 
   if (loading) {
@@ -163,8 +89,11 @@ export default function Home() {
           )}
           <ChatInput
             value={input}
-            onChange={setInput}
-            onSend={sendMessage}
+            onChange={(val) => {
+              setInput(val);
+              if (chatError) setChatError('');
+            }}
+            onSend={handleSend}
             disabled={isRetrying}
           />
         </div>

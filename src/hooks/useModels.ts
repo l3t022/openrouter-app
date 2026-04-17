@@ -1,31 +1,31 @@
-import { useState, useEffect } from 'react';
+import useSWR from 'swr';
 import { CategorizedModels } from '@/types';
 
+const fetcher = (url: string) => fetch(url).then((res) => {
+  if (!res.ok) throw new Error('Failed to fetch');
+  return res.json();
+});
+
 export function useModels() {
-  const [models, setModels] = useState<CategorizedModels>({
-    all: [],
-    free: [],
-    vision: [],
-    coding: [],
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data, error, isLoading, mutate } = useSWR<CategorizedModels>(
+    '/api/models',
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 60000,
+      fallbackData: {
+        all: [],
+        free: [],
+        vision: [],
+        coding: [],
+      },
+    }
+  );
 
-  useEffect(() => {
-    fetch('/api/models')
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to fetch models');
-        return res.json();
-      })
-      .then((data) => {
-        setModels(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message);
-        setLoading(false);
-      });
-  }, []);
-
-  return { models, loading, error };
+  return {
+    models: data || { all: [], free: [], vision: [], coding: [] },
+    loading: isLoading,
+    error,
+    refresh: mutate,
+  };
 }
