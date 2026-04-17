@@ -5,6 +5,7 @@ import { SelectedModels, Toast } from '@/types';
 import { useModels } from '@/hooks/useModels';
 import { useChat } from '@/hooks/useChat';
 import { SettingsPanel, ChatMessages, ChatInput, ToastContainer } from '@/components';
+import { SettingsSkeleton } from '@/components/SkeletonLoaders';
 import { generateId } from '@/lib/utils';
 
 export default function Home() {
@@ -59,7 +60,19 @@ export default function Home() {
   };
 
   if (loading) {
-    return <div style={{ color: 'white', padding: '2rem' }}>Loading OpenRouter Models…</div>;
+    return (
+      <main className="dashboard">
+        <div className="card">
+          <SettingsSkeleton />
+        </div>
+        <section className="card chat-container">
+          <h2>Chat Preview</h2>
+          <div className="chat-messages" style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '4rem' }}>
+            Loading OpenRouter Models...
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (

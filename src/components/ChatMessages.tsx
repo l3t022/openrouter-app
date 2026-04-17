@@ -1,11 +1,12 @@
 import { ChatMessage } from '@/types';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
-interface ChatMessageProps {
+interface ChatMessagesProps {
   messages: ChatMessage[];
   streamingContent: string;
 }
 
-export function ChatMessages({ messages, streamingContent }: ChatMessageProps) {
+export function ChatMessages({ messages, streamingContent }: ChatMessagesProps) {
   if (messages.length === 0 && !streamingContent) {
     return (
       <div style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '4rem' }}>
@@ -19,13 +20,17 @@ export function ChatMessages({ messages, streamingContent }: ChatMessageProps) {
       {messages.map((m, i) => (
         <div key={i} className={`message ${m.role}`}>
           <strong>{m.role === 'user' ? 'You' : 'Assistant'}</strong>
-          <p>{m.content}</p>
+          {m.role === 'assistant' ? (
+            <MarkdownRenderer content={m.content} />
+          ) : (
+            <p>{m.content}</p>
+          )}
         </div>
       ))}
       {streamingContent && (
         <div className="message assistant">
           <strong>Assistant</strong>
-          <p>{streamingContent}</p>
+          <MarkdownRenderer content={streamingContent} />
         </div>
       )}
     </>
