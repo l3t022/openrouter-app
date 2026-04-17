@@ -48,3 +48,43 @@ npm run lint
 ## Git Worktrees
 
 The project uses git worktrees for versioned development. Each folder (`v1-fase1`, etc.) is a separate checkout tied to the main repo in `openrouter-repo/`.
+
+## Cloud Repositories
+
+The project is synced to two cloud providers:
+
+| Provider | URL | Remote Name |
+|----------|-----|--------------|
+| **GitHub** | https://github.com/l3t022/openrouter-app | `origin` |
+| **GitLab** | https://gitlab.com/l3t022/openrouter-app | `gitlab` |
+
+### Push to both clouds
+
+```bash
+# Push to GitHub (default)
+git push origin main
+git push origin --tags
+
+# Push to GitLab
+git push gitlab main
+git push gitlab --tags
+
+# Push to both at once
+git push origin main && git push gitlab main
+```
+
+### Pull from clouds
+
+```bash
+# Pull from GitHub
+git pull origin main
+
+# Pull from GitLab
+git pull gitlab main
+```
+
+### Check remotes
+
+```bash
+git remote -v
+```
