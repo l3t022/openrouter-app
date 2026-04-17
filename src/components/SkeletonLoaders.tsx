@@ -1,8 +1,11 @@
-export function SkeletonLoader({ className }: { className?: string }) {
+import type { CSSProperties } from 'react';
+
+export function SkeletonLoader({ className, style }: { className?: string; style?: CSSProperties }) {
   return (
     <div
       className={className}
       style={{
+        ...style,
         background: 'linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%)',
         backgroundSize: '200% 100%',
         animation: 'skeleton-pulse 1.5s ease-in-out infinite',

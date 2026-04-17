@@ -79,7 +79,7 @@ export function useChat({ apiKey, selectedModels, onError, onRetry }: UseChatOpt
         response = await executeChat(modelToUse);
       } catch (err: unknown) {
         const error = err as { status?: number; message?: string };
-        if (selectedModels.fallback && (error.status === 429 || error.status >= 500)) {
+        if (selectedModels.fallback && error.status && (error.status === 429 || error.status >= 500)) {
           setIsRetrying(true);
           onRetry?.(true);
           await new Promise((r) => setTimeout(r, 1000));
